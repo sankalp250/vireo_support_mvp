@@ -1,5 +1,6 @@
 # Vireo Audio — Support Operations & Headcount Intelligence Platform
 
+[![Live App](https://img.shields.io/badge/Live_Production_App-Render-00c853?style=for-the-badge&logo=render&logoColor=white)](https://vireo-support-mvp.onrender.com)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/Framework-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![Groq](https://img.shields.io/badge/AI_Engine-Groq_GPT--OSS--20B-f55036.svg)](https://groq.com/)
@@ -7,6 +8,8 @@
 [![Tests](https://img.shields.io/badge/Tests-5%2F5_Passing-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-green.svg)]()
 
+> 🚀 **Live Production Application**: [https://vireo-support-mvp.onrender.com](https://vireo-support-mvp.onrender.com)
+> 
 > A production-grade support analytics and headcount intelligence platform built for **Vireo Audio**. Reconciles weak intake bot tags against AI-evaluated customer intent across **11,641 tickets** (Jan 2025 – Jun 2026), resolves executive staffing trade-offs with financial precision, tracks SLA financial leakage, and provides forensic case investigation with human-in-the-loop validation.
 
 ---
