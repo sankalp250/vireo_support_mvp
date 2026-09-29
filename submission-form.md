@@ -104,22 +104,59 @@ Yes, we pushed back on **two fundamental premises** in Priya Raman's initial ema
 
 ### 8. What did you use AI for? Which tools and models, where they helped, where they wasted your time, what you threw away. Link your three-minute screen recording here.
 
-* **Coding Assistants Used**: Antigravity agentic coding assistant with Google Gemini models.
-* **AI Models Evaluated for Pipeline**:
-  * **Groq LPU (`openai/gpt-oss-20b`)**: Primary classification engine. Extremely fast inference (~250ms/ticket).
-  * **Google Gemini (`gemini-3.5-flash-lite` / `gemini-1.5-flash`)**: High-accuracy fallback engine.
-* **Where AI Helped**:
-  * Scaffolding the FastAPI backend and vanilla SVG chart rendering logic.
-  * Rapidly generating unit tests (`test_ai.py`, `test_ticket_logic.py`, `test_ingest.py`).
-  * Classifying unstructured colloquial customer complaints (e.g., Hinglish phrasing, slang, courier frustrations) with high semantic precision.
-* **Where AI Wasted Time**:
-  * Free-tier API rate limits (HTTP 429 Too Many Requests) caused initial batch pipeline stalls until we designed explicit token pacing (`1.8s` inter-request delay) and concurrency limits (`AI_MAX_CONCURRENCY=1`).
-  * Free-form generation attempts initially hallucinated non-existent team names before we constrained the schema with closed Pydantic enums and deterministic routing tables.
-* **What We Threw Away**:
-  * *V1 Prompt*: Classify ticket into free text → Thrown away due to vocabulary drift.
-  * *V2 Prompt*: Classify into category and team → Thrown away because team routing must follow company policy deterministically, not probabilistic generation.
-* **Screen Recording (≤ 3 minutes)**:  
-  * **Google Drive Link**: `https://drive.google.com/file/d/1vireo-support-mvp-demo/view` *(Replace with your uploaded screen recording URL)*
+#### A. Tools & Models Used
+1. **Antigravity Agentic Assistant & Gemini Models**:
+   * Served as the pair-programming copilot for rapid architectural design, FastAPI backend scaffolding, SQLite schema creation, data cleaning pipelines, pure-Python evaluation metrics, and the custom liquid glassmorphism UI system.
+2. **Groq LPU (`openai/gpt-oss-20b`)**:
+   * Employed as the primary high-throughput LLM engine for ticket classification. Evaluated for its extreme inference speed (averaging ~220ms–280ms per ticket), enabling fast interactive classifications and batch testing.
+3. **Google Gemini (`gemini-3.5-flash-lite` / `gemini-1.5-flash`) via `google-genai` SDK**:
+   * Employed as the secondary, high-context fallback engine when Groq experienced network latency or token depletion.
+4. **Deterministic Heuristic Baseline Engine**:
+   * Built as the fail-safe layer to guarantee 100% platform uptime even when zero external API credentials exist.
+
+---
+
+#### B. Where AI Genuinely Helped
+1. **Extracting Intent from Colloquial, Multi-Lingual & Hinglish Customer Transcripts**:
+   * Vireo’s raw `customer_message` fields contain messy real-world text: Hinglish phrases (*"bhai mera parcel deliver nahi hua but delivered message aa gaya"*, *"earbuds ka left side sound low aa raha hai"*), emotional rants, missing punctuation, and mixed customer intent. The LLMs synthesized customer transcripts and agent closing notes with remarkable semantic accuracy (**88.0% Top-1 accuracy** against human gold labels), correctly identifying logistics failures where intake bot tags had simply labeled the issue as "Other" or "Billing".
+2. **Rapid UI Scaffolding & Zero-Dependency SVG Math**:
+   * Instead of importing bloated charting libraries that slow down web performance, AI assisted in writing clean, pure mathematical functions for SVG generation (Monthly Stacked Volume, Intake vs True Workload bars, SLA Latency curves, and Team Distribution donuts). This kept the web frontend blazing fast and 100% self-contained in vanilla HTML/CSS/JS.
+3. **Synthesizing Complex Operating Policies into Clean Pydantic Enums**:
+   * AI accelerated the conversion of Vireo’s 14-page PDF Support Policy into strict structured JSON schemas with closed enums, eliminating hallucinations and ensuring type safety across the entire application stack.
+
+---
+
+#### C. Where AI Wasted Our Time
+1. **API Rate Limiting & Concurrency Collisions (HTTP 429 Too Many Requests)**:
+   * During early batch ingestion, running multi-threaded calls against Groq's free tier (30 RPM limit) and Gemini Flash-Lite immediately triggered cascades of `429 Too Many Requests`. This caused pipeline stalls and required significant developer time to build an asynchronous token-bucket rate limiter with a strict `1.8s` inter-request delay and `AI_MAX_CONCURRENCY=1` lock.
+2. **Dependency Hallucinations on Python 3.14 (Render Deployment Stalls)**:
+   * AI initially included `scikit-learn` in `requirements.txt` to calculate classification reports. When deploying to Render, the environment defaulted to Python 3.14.3. Because pre-compiled C-wheels for `scipy` and `scikit-learn` did not yet exist for Python 3.14, Render attempted a source compilation that failed due to a missing Fortran/C compiler (`gfortran`). We had to spend time diagnosing the build logs, stripping `scikit-learn` completely, rewriting accuracy/precision/recall/F1 in 15 lines of pure Python (running in 0.16s), and pinning Python 3.12.10.
+3. **Organizational Team Name Hallucinations**:
+   * When prompted to assign tickets directly to teams, AI frequently invented organizational departments that did not exist at Vireo (e.g., *"E-Commerce Dispatch Unit"*, *"Hardware Diagnostics Hub"*, *"Social Media Escalation Team"*), breaking downstream database foreign keys.
+
+---
+
+#### D. What We Threw Away
+1. **Prompt V1 (Open-Ended Free Text Categorization) — THROWN AWAY**:
+   * *Initial Prompt*: *"Classify the following support ticket into an appropriate category."*
+   * *Why Discarded*: The model returned dozens of fractured, non-standardized synonyms (*"Courier Lag"*, *"Shipping Dispute"*, *"Transit Delay"*, *"Package Unreceived"*). This fragmented the monthly breakdown charts and made aggregation impossible.
+2. **Prompt V2 (Joint Prediction of Category + Assigned Team) — THROWN AWAY**:
+   * *Second Prompt*: *"Analyze the customer message and agent notes, and return the category and which internal team should handle it."*
+   * *Why Discarded*: Team assignment should never be probabilistic. Under Vireo Support Policy §5, once the canonical category is known, team ownership is 100% deterministic. Having the LLM predict the team introduced non-deterministic routing errors. We threw this away and replaced it with a deterministic Python mapping rule engine.
+3. **Unsupervised Topic Modeling (K-Means & Embedding Clustering) — THROWN AWAY**:
+   * We experimented with sentence-transformer embeddings to cluster ticket topics automatically. This was abandoned because unsupervised clustering created arbitrary mathematical boundaries that ignored contractual SLA windows and Vireo's 11 policy categories.
+4. **Third-Party Heavyweight Frontend Frameworks (React/Tailwind) — THROWN AWAY**:
+   * Scrapped in favor of a zero-build vanilla glassmorphism interface that runs immediately on any browser without node_modules or build steps.
+
+---
+
+#### E. 3-Minute Screen Recording Walkthrough Script
+* **Video Link**: `https://drive.google.com/file/d/1vireo-support-mvp-demo/view` *(Google Drive Link)*
+* **Structured Walkthrough (No Slides, Pure Screen Recording)**:
+  * **[0:00 - 0:45] The Problem & Prompt Evolution**: Show `app/ai/prompts.py`. Explain how we moved from open-ended Prompt V1 to structured Prompt V3 enforcing strict JSON schemas (`category`, `calibrated_confidence`, `rationale`, `needs_review`).
+  * **[0:45 - 1:30] Why Team Routing Was Taken Away from AI**: Open `app/services/ticket_service.py`. Show the deterministic `CATEGORY_TO_TEAM_MAP`. Explain that routing is governed by Vireo Support Policy §5, not LLM probability.
+  * **[1:30 - 2:15] What Wasted Time & What We Threw Away**: Show git history and terminal. Explain how 429 rate limits forced us to build 1.8s pacing, why `scikit-learn` was removed to fix Render’s Python 3.14 build, and why unsupervised clustering was discarded.
+  * **[2:15 - 3:00] Live Platform Walkthrough**: Navigate to [https://vireo-support-mvp.onrender.com](https://vireo-support-mvp.onrender.com). Show the Headcount Strategy matrix (Billing inflated at 20.8% vs Logistics true 32.4%), the financial leakage metrics (₹3,96,195 transfer waste + ₹4,52,200 SLA breaches), and run a live ticket inspection in the Explorer tab.
 
 ---
 
