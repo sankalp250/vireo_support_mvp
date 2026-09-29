@@ -15,7 +15,7 @@ class GroqAIProvider(AIProvider):
 
     def classify(self, text: str, channel: str | None = None) -> ClassificationResult:
         last_error = None
-        for attempt in range(3):
+        for attempt in range(4):
             try:
                 user = f"Channel: {channel or 'unknown'}\n\n{text}"
                 response = self.client.chat.completions.create(
@@ -31,6 +31,14 @@ class GroqAIProvider(AIProvider):
                 return ClassificationResult.model_validate(json.loads(content))
             except Exception as exc:
                 last_error = exc
-                if attempt < 2:
-                    time.sleep(0.5 * (2 ** attempt))
-        raise RuntimeError(f"Groq classification failed after 3 attempts: {last_error}")
+                if attempt < 3:
+                    err_str = str(exc)
+                    wait = 1.0 * (2 ** attempt)
+                    if "try again in" in err_str:
+                        import re
+                        m = re.search(r"try again in ([\d\.]+)s", err_str)
+                        wait = float(m.group(1)) + 0.5 if m else 5.0
+                    elif "429" in err_str:
+                        wait = max(wait, 5.0)
+                    time.sleep(wait)
+        raise RuntimeError(f"Groq classification failed after 4 attempts: {last_error}")

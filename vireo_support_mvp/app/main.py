@@ -82,18 +82,30 @@ def metrics_summary(db:Session=Depends(get_db)):
     return {"summary":summary(db),"transfers":transfer_metrics(db),"sla":sla_metrics(db),"evaluation":evaluation(db)}
 
 @app.get("/api/v1/metrics/monthly")
-def metrics_monthly(dimension:str=Query("category"), db:Session=Depends(get_db)):
+def metrics_monthly(dimension:str=Query("category"), exclude_unclassified:bool=Query(False), db:Session=Depends(get_db)):
     if dimension not in {"category","ai_category","team","recommended_team"}:
         raise HTTPException(400,"dimension must be category, ai_category, team or recommended_team")
-    return {"dimension":dimension,"data":monthly(db,dimension)}
+    return {"dimension":dimension,"data":monthly(db,dimension,exclude_unclassified=exclude_unclassified)}
 
 @app.get("/api/v1/metrics/headcount")
 def metrics_headcount(db:Session=Depends(get_db)):
     return headcount_signals(db)
 
 @app.get("/api/v1/tickets")
-def list_tickets(limit:int=100, offset:int=0, db:Session=Depends(get_db)):
-    rows=db.execute(select(Ticket.ticket_id,Ticket.created_at,Ticket.channel,Ticket.category,Ticket.assigned_team,Classification.category.label('ai_category'),Classification.confidence,Classification.needs_review,Classification.recommended_team).join(Classification,Classification.ticket_id==Ticket.ticket_id,isouter=True).order_by(Ticket.created_at).offset(offset).limit(min(limit,500))).all()
+def list_tickets(limit:int=100, offset:int=0, search:str|None=None, channel:str|None=None, misrouted_only:bool=False, needs_review:bool|None=None, db:Session=Depends(get_db)):
+    stmt=select(
+        Ticket.ticket_id,Ticket.created_at,Ticket.channel,Ticket.category,Ticket.assigned_team,
+        Ticket.customer_message,Ticket.agent_notes,
+        Classification.category.label('ai_category'),Classification.confidence,Classification.needs_review,
+        Classification.recommended_team,Classification.rationale
+    ).join(Classification,Classification.ticket_id==Ticket.ticket_id,isouter=True).order_by(Ticket.created_at)
+    if channel: stmt = stmt.where(Ticket.channel == channel)
+    if misrouted_only: stmt = stmt.where(Classification.recommended_team.isnot(None) & (Classification.recommended_team != Ticket.assigned_team))
+    if needs_review is not None: stmt = stmt.where(Classification.needs_review == needs_review)
+    if search:
+        pat = f"%{search}%"
+        stmt = stmt.where(Ticket.ticket_id.ilike(pat) | Ticket.customer_message.ilike(pat) | Ticket.agent_notes.ilike(pat) | Ticket.category.ilike(pat) | Classification.category.ilike(pat))
+    rows=db.execute(stmt.offset(offset).limit(min(limit,500))).all()
     return [{k:getattr(r,k) for k in r._fields} for r in rows]
 
 @app.post("/api/v1/reviews")

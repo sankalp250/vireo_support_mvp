@@ -1,1 +1,842 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vireo Support Analytics</title><link rel="stylesheet" href="/static/styles.css"></head><body><main class="shell"><header><div><h1>Vireo Audio Support Analytics</h1><p>AI-assisted ticket categorisation and staffing analysis</p></div><button id="run">Run analysis</button></header><section id="cards" class="grid"></section><section class="panel"><h2>Monthly AI category volume</h2><canvas id="categoryChart"></canvas></section><section class="panel"><h2>Monthly recommended-team volume</h2><canvas id="teamChart"></canvas></section><section class="panel"><h2>Operational signals</h2><div id="signals" class="signals"></div></section><section class="panel"><h2>Classification quality</h2><pre id="evaluation"></pre></section></main><script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script><script src="/static/app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vireo Audio — Support Operations & Headcount Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <!-- Ambient Liquid Glow Mesh -->
+  <div class="liquid-mesh-canvas">
+    <div class="liquid-orb orb-1"></div>
+    <div class="liquid-orb orb-2"></div>
+    <div class="liquid-orb orb-3"></div>
+  </div>
+
+  <!-- Global App Shell -->
+  <div class="app-shell">
+    
+    <!-- Top Navigation Header -->
+    <header class="top-nav">
+      <div class="nav-container">
+        <div class="brand-section">
+          <div class="brand-text">
+            <div class="brand-title">Vireo Audio <span class="app-tag">Support Analytics</span></div>
+            <div class="brand-subtitle">Operating Policy v3.2 • Headcount Planning Pack (Jan 2025 – Jun 2026)</div>
+          </div>
+        </div>
+
+        <!-- Tab Navigation (Pages) -->
+        <nav class="nav-tabs" role="tablist" aria-label="Dashboard Views">
+          <button class="nav-tab active" data-tab="tab-guide" role="tab" aria-selected="true" aria-controls="tab-guide">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            System Guide
+          </button>
+          <button class="nav-tab" data-tab="tab-overview" role="tab" aria-selected="false" aria-controls="tab-overview">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Headcount Strategy
+          </button>
+          <button class="nav-tab" data-tab="tab-analytics" role="tab" aria-selected="false" aria-controls="tab-analytics">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Routing Multi-Charts
+          </button>
+          <button class="nav-tab" data-tab="tab-operations" role="tab" aria-selected="false" aria-controls="tab-operations">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            SLA & Leakage
+          </button>
+          <button class="nav-tab" data-tab="tab-tickets" role="tab" aria-selected="false" aria-controls="tab-tickets">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Ticket Explorer
+          </button>
+        </nav>
+
+        <!-- Global Action Controls -->
+        <div class="nav-actions">
+          <div class="run-batch-wrapper">
+            <select id="batchSizeSelect" class="batch-select" aria-label="Select Batch Size">
+              <option value="25">25 tickets</option>
+              <option value="50" selected>50 tickets</option>
+              <option value="100">100 tickets</option>
+            </select>
+            <button id="runBtn" class="btn btn-primary">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span id="runBtnText">Run Analysis</span>
+            </button>
+          </div>
+          <button id="refreshBtn" class="btn btn-icon" title="Refresh metrics" aria-label="Refresh metrics">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Notification / Progress Banner -->
+    <div id="statusBanner" class="alert-banner hidden" role="status">
+      <div class="spinner-sm"></div>
+      <div id="statusMessage" class="alert-message">Processing batch...</div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="main-container">
+
+      <!-- ============================================================ -->
+      <!-- PAGE 1: SYSTEM GUIDE & EXECUTIVE BRIEFING (PAGE EXPLAINER)   -->
+      <!-- ============================================================ -->
+      <section id="tab-guide" class="tab-pane active" role="tabpanel">
+        
+        <!-- Welcome Hero Section -->
+        <div class="glass-card hero-glass-card">
+          <div class="hero-top-badge">
+            <span class="sparkle-icon">✨</span> System Architecture & Executive Roadmap
+          </div>
+          <h1 class="hero-main-title">
+            Vireo Audio Support Intelligence & Staffing Platform
+          </h1>
+          <p class="hero-main-desc">
+            This platform audits <strong>11,641 customer support interactions</strong> across an 18-month horizon (Jan 2025 – Jun 2026). It reconciles weak intake bot tags against AI-evaluated root causes to empower CFO Arjun Mehta and CX Head Priya Raman to allocate <strong>2 planned Tier-1 hires (₹9,00,000/year)</strong> with data-backed precision.
+          </p>
+
+          <!-- Quick Stats Pill Ribbon -->
+          <div class="hero-stats-ribbon">
+            <div class="stat-pill-item">
+              <span class="stat-pill-num" id="guideTotalTickets">11,641</span>
+              <span class="stat-pill-lbl">Eligible Tickets</span>
+            </div>
+            <div class="stat-pill-divider"></div>
+            <div class="stat-pill-item">
+              <span class="stat-pill-num">18 Months</span>
+              <span class="stat-pill-lbl">Analysis Window</span>
+            </div>
+            <div class="stat-pill-divider"></div>
+            <div class="stat-pill-item">
+              <span class="stat-pill-num">6 Teams</span>
+              <span class="stat-pill-lbl">Tier-1 Evaluated</span>
+            </div>
+            <div class="stat-pill-divider"></div>
+            <div class="stat-pill-item">
+              <span class="stat-pill-num text-rose">₹3,96,195</span>
+              <span class="stat-pill-lbl">Transfer Inefficiency</span>
+            </div>
+            <div class="stat-pill-divider"></div>
+            <div class="stat-pill-item">
+              <span class="stat-pill-num text-amber">₹4,52,200</span>
+              <span class="stat-pill-lbl">SLA Credit Liability</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4-Card System Walkthrough Grid -->
+        <div class="section-subhead-glass">
+          <h2>Platform Modules & What Each Page Delivers</h2>
+          <p>Click on any module card below to jump directly into that view.</p>
+        </div>
+
+        <div class="guide-cards-grid">
+          
+          <!-- Guide Card 1 -->
+          <div class="glass-card guide-feature-card" data-jump="tab-overview">
+            <div class="card-icon-bubble bubble-blue">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </div>
+            <div class="guide-card-header">
+              <span class="guide-tag tag-blue">Page 1 • Executive Headcount</span>
+              <h3>Headcount Strategy & Decision Matrix</h3>
+            </div>
+            <p class="guide-card-text">
+              Resolves the core staffing debate: CX Head Priya Raman assumed the 2 new hires belong to <strong>Billing</strong> because intake bot tags showed 21.8% volume. Our AI root-cause analysis proves <strong>38% of Billing tickets were courier tracking questions</strong> that actually belong to <strong>Logistics</strong>.
+            </p>
+            <div class="guide-card-features">
+              <div class="feature-bullet">✓ Executive Staffing Recommendation (+2 to Logistics)</div>
+              <div class="feature-bullet">✓ Tier-1 Staffing Signal Comparison Table & Delta %</div>
+              <div class="feature-bullet">✓ 6 High-Level Business KPIs & Coverage Gauges</div>
+            </div>
+            <div class="guide-card-action">
+              <span>Open Headcount Strategy</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </div>
+          </div>
+
+          <!-- Guide Card 2 -->
+          <div class="glass-card guide-feature-card" data-jump="tab-analytics">
+            <div class="card-icon-bubble bubble-emerald">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </div>
+            <div class="guide-card-header">
+              <span class="guide-tag tag-emerald">Page 2 • Multi-Chart Visuals</span>
+              <h3>Volume & Routing Multi-Charts</h3>
+            </div>
+            <p class="guide-card-text">
+              Multiple distinct charts instead of a single crowded graph. Inspect side-by-side capacity comparisons, full 11-category distributions, and multi-month workload curves across the entire 18-month timeline with interactive isolation chips.
+            </p>
+            <div class="guide-card-features">
+              <div class="feature-bullet">✓ Graph 1: Raw Intake vs AI True Workload Side-by-Side</div>
+              <div class="feature-bullet">✓ Graph 2: 11 Issue Categories Ranked Distribution</div>
+              <div class="feature-bullet">✓ Graph 3: Monthly Support Team Workload (18 Months)</div>
+              <div class="feature-bullet">✓ Graph 4: Monthly Issue Category Volume & Slicers</div>
+            </div>
+            <div class="guide-card-action">
+              <span>Open Multi-Chart Suite</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </div>
+          </div>
+
+          <!-- Guide Card 3 -->
+          <div class="glass-card guide-feature-card" data-jump="tab-operations">
+            <div class="card-icon-bubble bubble-purple">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <div class="guide-card-header">
+              <span class="guide-tag tag-purple">Page 3 • Unit Economics</span>
+              <h3>SLA & Financial Leakage</h3>
+            </div>
+            <p class="guide-card-text">
+              Direct financial quantification of operational inefficiencies. Measures customer wait times against Support Policy §2 SLAs and calculates the hard rupee costs of misrouted tickets and cross-team bounces.
+            </p>
+            <div class="guide-card-features">
+              <div class="feature-bullet">✓ Channel Response SLA Compliance (Chat, Voice, Social, Email)</div>
+              <div class="feature-bullet">✓ Internal Transfer Penalty Waste (₹305/bounce = ₹3,96,195)</div>
+              <div class="feature-bullet">✓ SLA Breach Customer Credit Liability (₹350/breach = ₹4,52,200)</div>
+              <div class="feature-bullet">✓ Human Gold-Standard Accuracy & Macro-F1 Evaluation</div>
+            </div>
+            <div class="guide-card-action">
+              <span>Open SLA & Leakage</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </div>
+          </div>
+
+          <!-- Guide Card 4 -->
+          <div class="glass-card guide-feature-card" data-jump="tab-tickets">
+            <div class="card-icon-bubble bubble-amber">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <div class="guide-card-header">
+              <span class="guide-tag tag-amber">Page 4 • Forensic Audit</span>
+              <h3>Ticket Explorer & Case Inspector</h3>
+            </div>
+            <p class="guide-card-text">
+              Searchable, paginated audit table with instant forensic side-sheet inspection. Read raw customer chat/IVR transcripts, agent closing notes, model confidence scores, and step-by-step policy routing explanations.
+            </p>
+            <div class="guide-card-features">
+              <div class="feature-bullet">✓ Real-time keyword search & channel filtering</div>
+              <div class="feature-bullet">✓ Misrouted ticket isolation (Assigned Team ≠ AI Recommended)</div>
+              <div class="feature-bullet">✓ Interactive Sliding Drawer Inspector with verbatim text</div>
+              <div class="feature-bullet">✓ Built-in Gold Label Review Tool with instant database save</div>
+            </div>
+            <div class="guide-card-action">
+              <span>Open Ticket Explorer</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- PAGE 2: OVERVIEW & HEADCOUNT STRATEGY (EXECUTIVE DASHBOARD)  -->
+      <!-- ============================================================ -->
+      <section id="tab-overview" class="tab-pane" role="tabpanel">
+        
+        <!-- Executive Decision Card (Priya vs Arjun Mehta) -->
+        <div class="glass-card executive-card">
+          <div class="executive-card-header">
+            <div class="exec-badge">Executive Staffing Decision</div>
+            <h2>Headcount Reallocation Case: 2 New Hires (₹9,00,000 / year)</h2>
+            <p class="exec-summary">
+              Evaluating CX Head Priya Raman’s assumption (allocating 2 hires to Billing) versus actual AI-reclassified ticket demand across Tier-1 teams.
+            </p>
+          </div>
+
+          <div class="comparison-cards-grid">
+            <div class="case-card before-case">
+              <div class="case-meta">
+                <span class="case-pill pill-amber">Intake Bot Tags (Priya's Assumption)</span>
+                <span class="case-stat">21.8% of tickets</span>
+              </div>
+              <div class="case-title">Billing appeared as largest queue</div>
+              <p class="case-desc">
+                Intake tags set by chat bot suggested Billing had <strong>2,425 tickets</strong>. Priya half-promised both new hires to Billing based solely on these raw tags.
+              </p>
+              <div class="case-bar-track">
+                <div class="case-bar-fill fill-amber" style="width: 21.8%"></div>
+              </div>
+              <div class="case-footer-note">Weak label: Agents rarely re-tag upon ticket resolution.</div>
+            </div>
+
+            <div class="case-card after-case">
+              <div class="case-meta">
+                <span class="case-pill pill-blue">AI Issue Reclassification (Ground Truth)</span>
+                <span class="case-stat" id="logisticsTrueShare">Logistics is #1 Bottleneck</span>
+              </div>
+              <div class="case-title">Logistics is drowning; Billing queue was inflated</div>
+              <p class="case-desc">
+                AI reclassification of customer messages and agent closing notes confirms <strong>38% of Billing tickets were delivery/courier tracking inquiries</strong> misrouted at intake.
+              </p>
+              <div class="case-bar-track">
+                <div class="case-bar-fill fill-blue" id="logisticsShareBar" style="width: 32%"></div>
+              </div>
+              <div class="case-footer-note">Logistics resolution times exceed 24+ hours due to cross-team bounces.</div>
+            </div>
+
+            <div class="case-card decision-case">
+              <div class="case-meta">
+                <span class="case-pill pill-emerald">Finance & Operations Recommendation</span>
+                <span class="case-stat">Arjun Mehta Approval</span>
+              </div>
+              <div class="case-title">Reallocate the 2 hires to Logistics</div>
+              <p class="case-desc">
+                Placing the 2 hires into Logistics resolves the primary operational bottleneck, prevents repetitive internal transfers (saving <strong>₹305/transfer</strong>), and reduces SLA credit penalties.
+              </p>
+              <div class="roi-chip-row">
+                <div class="roi-chip">
+                  <span class="roi-label">Transfer Penalty</span>
+                  <span class="roi-val" id="roiTransferTotal">₹3,96,195</span>
+                </div>
+                <div class="roi-chip">
+                  <span class="roi-label">SLA Breach Credit</span>
+                  <span class="roi-val" id="roiSlaTotal">₹4,52,200</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Staffing Signal Comparison Table -->
+          <div class="staffing-table-wrap">
+            <div class="section-subhead">
+              <h3>Tier-1 Support Team Volume & Staffing Signals</h3>
+              <p>Per Vireo Policy §9, Tier-2 (Escalations & Warranty) is excluded from Tier-1 volume comparisons.</p>
+            </div>
+            <div class="table-container">
+              <table class="clean-table" id="headcountSummaryTable">
+                <thead>
+                  <tr>
+                    <th>Tier-1 Support Team</th>
+                    <th>Raw Intake Tickets</th>
+                    <th>Intake Queue Share</th>
+                    <th>AI True Workload</th>
+                    <th>AI True Share</th>
+                    <th>Share Delta</th>
+                    <th>Headcount Recommendation</th>
+                  </tr>
+                </thead>
+                <tbody id="headcountSummaryBody">
+                  <tr><td colspan="7" class="loading-cell">Loading headcount signals...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- KPI Metric Cards Grid -->
+        <div class="kpi-row">
+          <div class="glass-card kpi-card">
+            <div class="kpi-top">
+              <span class="kpi-title">Analysis Dataset</span>
+              <span class="kpi-badge">18 Months</span>
+            </div>
+            <div class="kpi-number" id="kpiTotalTickets">11,641</div>
+            <div class="kpi-footer">Eligible tickets within Jan '25 – Jun '26</div>
+          </div>
+
+          <div class="glass-card kpi-card">
+            <div class="kpi-top">
+              <span class="kpi-title">AI Classification Progress</span>
+              <span class="kpi-badge badge-blue" id="kpiCoveragePct">100%</span>
+            </div>
+            <div class="kpi-number" id="kpiClassifiedNum">11,641</div>
+            <div class="kpi-progress">
+              <div class="kpi-progress-bar" id="kpiProgressBar" style="width: 100%"></div>
+            </div>
+            <div class="kpi-footer" id="kpiCoverageFooter">11,641 of 11,641 classified</div>
+          </div>
+
+          <div class="glass-card kpi-card">
+            <div class="kpi-top">
+              <span class="kpi-title">Calibrated Confidence</span>
+              <span class="kpi-badge badge-emerald" id="kpiConfidenceBadge">High</span>
+            </div>
+            <div class="kpi-number" id="kpiAvgConfidence">—</div>
+            <div class="kpi-footer">Average model calibrated score</div>
+          </div>
+
+          <div class="glass-card kpi-card">
+            <div class="kpi-top">
+              <span class="kpi-title">Misrouted Intake Rate</span>
+              <span class="kpi-badge badge-rose">Handoffs</span>
+            </div>
+            <div class="kpi-number" id="kpiMisroutedPct">Calculating…</div>
+            <div class="kpi-footer">Initial team ≠ AI Policy Owner</div>
+          </div>
+
+          <div class="glass-card kpi-card">
+            <div class="kpi-top">
+              <span class="kpi-title">Internal Transfer Cost</span>
+              <span class="kpi-badge badge-amber">₹305 / handoff</span>
+            </div>
+            <div class="kpi-number" id="kpiTransferCost">₹396,195</div>
+            <div class="kpi-footer" id="kpiTransferMeta">14.1% transfer rate (1,299 events)</div>
+          </div>
+
+          <div class="glass-card kpi-card">
+            <div class="kpi-top">
+              <span class="kpi-title">SLA Breach Exposure</span>
+              <span class="kpi-badge badge-rose">₹350 credit / breach</span>
+            </div>
+            <div class="kpi-number" id="kpiSlaCost">₹452,200</div>
+            <div class="kpi-footer" id="kpiSlaMeta">11.1% breach rate (1,292 breaches)</div>
+          </div>
+        </div>
+
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- PAGE 3: VOLUME & ROUTING ANALYTICS (MULTIPLE FOCUSED CHARTS) -->
+      <!-- ============================================================ -->
+      <section id="tab-analytics" class="tab-pane" role="tabpanel">
+        
+        <!-- Multi-Chart Grid: Top Row (Side-by-Side Comparison & Category Distribution) -->
+        <div class="analytics-charts-grid">
+          
+          <!-- Chart 1: Raw Intake vs AI True Workload Comparison (Side-by-Side Bars) -->
+          <div class="glass-card chart-panel">
+            <div class="chart-header">
+              <div>
+                <h3>Staffing Demand: Raw Intake vs. AI Recommended</h3>
+                <p class="chart-desc">Side-by-side comparison of bot intake queue share vs actual AI policy ownership</p>
+              </div>
+              <span class="guide-tag tag-blue">Comparative Bar Chart</span>
+            </div>
+            <div class="chart-canvas-container" style="height: 320px;">
+              <canvas id="comparisonBarChart"></canvas>
+            </div>
+            <div class="chart-caption">
+              Visualizes why Billing is artificially inflated (+10.6% bot tagging bias) while Logistics is severely understaffed.
+            </div>
+          </div>
+
+          <!-- Chart 2: 11 Issue Categories Ranked Distribution (Horizontal Bar Chart) -->
+          <div class="glass-card chart-panel">
+            <div class="chart-header">
+              <div>
+                <h3>Ranked Issue Categories Distribution</h3>
+                <p class="chart-desc">All 11 policy categories ranked by true ticket volume</p>
+              </div>
+              <span class="guide-tag tag-emerald">Ranked Horizontal Chart</span>
+            </div>
+            <div class="chart-canvas-container" style="height: 320px;">
+              <canvas id="categoryRankedChart"></canvas>
+            </div>
+            <div class="chart-caption">
+              Delivery & Shipping represents the single largest driver of customer support requests across all channels.
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Chart 3: Monthly Support Team Workload (Full 18-Month Timeline) -->
+        <div class="glass-card chart-panel">
+          <div class="chart-header">
+            <div>
+              <h3>Monthly Support Team Workload Timeline (18 Months)</h3>
+              <p class="chart-desc">True volume routed to each team according to Vireo Support Operating Policy §5 across all 18 months</p>
+            </div>
+            <div class="chart-toolbar">
+              <label class="toggle-control">
+                <input type="checkbox" id="excludeUnclassifiedTeam" checked>
+                <span>Hide Unclassified</span>
+              </label>
+              <div class="time-filter-group" id="teamHorizonFilter">
+                <button class="pill-btn active" data-horizon="all">All (18M)</button>
+                <button class="pill-btn" data-horizon="2025-H1">2025 H1</button>
+                <button class="pill-btn" data-horizon="2025-H2">2025 H2</button>
+                <button class="pill-btn" data-horizon="2026-H1">2026 H1</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Team Filter Chips -->
+          <div class="filter-chips-bar" id="teamChips">
+            <span class="chips-title">Isolate Team:</span>
+            <button class="chip active" data-team="all">All Teams</button>
+            <button class="chip" data-team="Logistics"><span class="chip-dot dot-blue"></span>Logistics</button>
+            <button class="chip" data-team="Billing"><span class="chip-dot dot-rose"></span>Billing</button>
+            <button class="chip" data-team="Chat Frontline"><span class="chip-dot dot-emerald"></span>Chat Frontline</button>
+            <button class="chip" data-team="Email Frontline"><span class="chip-dot dot-purple"></span>Email Frontline</button>
+            <button class="chip" data-team="Returns Desk"><span class="chip-dot dot-amber"></span>Returns Desk</button>
+            <button class="chip" data-team="Voice Frontline"><span class="chip-dot dot-cyan"></span>Voice Frontline</button>
+            <button class="chip" data-team="Escalations & Warranty"><span class="chip-dot dot-magenta"></span>Escalations & Warranty</button>
+          </div>
+
+          <!-- Canvas Container -->
+          <div class="chart-canvas-container" style="height: 340px;">
+            <canvas id="teamBarChart"></canvas>
+          </div>
+          <div class="chart-caption" id="teamChartCaption">
+            Showing monthly volume breakdown by team across all 18 months. Click any team chip above to isolate its monthly volume trend.
+          </div>
+        </div>
+
+        <!-- Chart 4: Monthly AI Category Volume -->
+        <div class="glass-card chart-panel">
+          <div class="chart-header">
+            <div>
+              <h3>Monthly Classified Issue Categories (18 Months)</h3>
+              <p class="chart-desc">Structured 11-category classification based on customer message and agent closing note</p>
+            </div>
+            <div class="chart-toolbar">
+              <label class="toggle-control">
+                <input type="checkbox" id="excludeUnclassifiedCategory" checked>
+                <span>Hide Unclassified</span>
+              </label>
+              <div class="time-filter-group" id="catHorizonFilter">
+                <button class="pill-btn active" data-horizon="all">All (18M)</button>
+                <button class="pill-btn" data-horizon="2025-H1">2025 H1</button>
+                <button class="pill-btn" data-horizon="2025-H2">2025 H2</button>
+                <button class="pill-btn" data-horizon="2026-H1">2026 H1</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Category Filter Chips -->
+          <div class="filter-chips-bar" id="categoryChips">
+            <span class="chips-title">Isolate Category:</span>
+            <button class="chip active" data-cat="all">All Categories</button>
+            <button class="chip" data-cat="Delivery & Shipping">Delivery & Shipping</button>
+            <button class="chip" data-cat="Returns & Refunds">Returns & Refunds</button>
+            <button class="chip" data-cat="Billing & Payments">Billing & Payments</button>
+            <button class="chip" data-cat="Audio Quality">Audio Quality</button>
+            <button class="chip" data-cat="Connectivity">Connectivity</button>
+            <button class="chip" data-cat="Charging & Battery">Charging & Battery</button>
+            <button class="chip" data-cat="Warranty & Repair">Warranty & Repair</button>
+            <button class="chip" data-cat="App & Firmware">App & Firmware</button>
+            <button class="chip" data-cat="Product Enquiry">Product Enquiry</button>
+            <button class="chip" data-cat="Account & Login">Account & Login</button>
+            <button class="chip" data-cat="Other">Other</button>
+          </div>
+
+          <!-- Canvas Container -->
+          <div class="chart-canvas-container" style="height: 340px;">
+            <canvas id="categoryBarChart"></canvas>
+          </div>
+          <div class="chart-caption" id="catChartCaption">
+            Showing monthly volume breakdown by issue category. Select any category chip above to isolate its trajectory.
+          </div>
+        </div>
+
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- PAGE 4: OPERATIONAL QUALITY & FINANCIAL LEAKAGE              -->
+      <!-- ============================================================ -->
+      <section id="tab-operations" class="tab-pane" role="tabpanel">
+        
+        <div class="ops-grid">
+          <!-- Channel SLA Compliance Card -->
+          <div class="glass-card ops-card">
+            <div class="ops-header">
+              <div>
+                <h3>Channel Response SLA Compliance</h3>
+                <p class="chart-desc">Target first human response time defined in Support Operating Policy §2</p>
+              </div>
+              <span class="badge badge-outline">SLA Benchmark</span>
+            </div>
+            
+            <div class="channel-sla-list">
+              <div class="sla-row">
+                <div class="sla-info">
+                  <span class="sla-channel">Chat Frontline</span>
+                  <span class="sla-target">Target: ≤ 15 min</span>
+                </div>
+                <div class="sla-bar-track">
+                  <div class="sla-bar-fill fill-emerald" style="width: 88.9%"></div>
+                </div>
+                <div class="sla-pct">88.9% Met</div>
+              </div>
+
+              <div class="sla-row">
+                <div class="sla-info">
+                  <span class="sla-channel">Voice Frontline</span>
+                  <span class="sla-target">Target: ≤ 120 min</span>
+                </div>
+                <div class="sla-bar-track">
+                  <div class="sla-bar-fill fill-blue" style="width: 86.2%"></div>
+                </div>
+                <div class="sla-pct">86.2% Met</div>
+              </div>
+
+              <div class="sla-row">
+                <div class="sla-info">
+                  <span class="sla-channel">Social Media</span>
+                  <span class="sla-target">Target: ≤ 240 min</span>
+                </div>
+                <div class="sla-bar-track">
+                  <div class="sla-bar-fill fill-amber" style="width: 79.4%"></div>
+                </div>
+                <div class="sla-pct">79.4% Met</div>
+              </div>
+
+              <div class="sla-row">
+                <div class="sla-info">
+                  <span class="sla-channel">Email Frontline</span>
+                  <span class="sla-target">Target: ≤ 480 min (8h)</span>
+                </div>
+                <div class="sla-bar-track">
+                  <div class="sla-bar-fill fill-purple" style="width: 91.7%"></div>
+                </div>
+                <div class="sla-pct">91.7% Met</div>
+              </div>
+            </div>
+
+            <div class="ops-footer-alert">
+              <strong>1,292 SLA Breaches</strong> resulted in ₹4,52,200 customer credit liability (₹350/breached ticket).
+            </div>
+          </div>
+
+          <!-- Unit Economics & Transfer Waste Card -->
+          <div class="glass-card ops-card">
+            <div class="ops-header">
+              <div>
+                <h3>Support Cost & Transfer Inefficiency</h3>
+                <p class="chart-desc">Cost model parameters based on Vireo financial planning assumptions</p>
+              </div>
+              <span class="badge badge-outline">Unit Costs</span>
+            </div>
+
+            <div class="cost-summary-list">
+              <div class="cost-row">
+                <span>Internal Transfer Penalty</span>
+                <span class="cost-val">₹305 <small>/ handoff</small></span>
+              </div>
+              <div class="cost-row">
+                <span>Current Helpdesk Transfer Rate</span>
+                <span class="cost-val">14.1% <small>(1,299 events)</small></span>
+              </div>
+              <div class="cost-row">
+                <span>Total Transfer Inefficiency Waste</span>
+                <span class="cost-val text-rose">₹3,96,195</span>
+              </div>
+              <div class="cost-row">
+                <span>Tier-1 Agent Hourly Cost</span>
+                <span class="cost-val">₹165 <small>/ hour</small></span>
+              </div>
+              <div class="cost-row">
+                <span>Annual Cost of 2 Planned Hires</span>
+                <span class="cost-val text-blue">₹9,00,000 <small>/ year</small></span>
+              </div>
+            </div>
+
+            <div class="ops-footer-alert">
+              Fixing intake routing to Logistics eliminates unnecessary cross-team bounces and recoups significant transfer waste.
+            </div>
+          </div>
+
+          <!-- Model Evaluation & Human Review Audit -->
+          <div class="glass-card ops-card">
+            <div class="ops-header">
+              <div>
+                <h3>Model Quality & Human Ground Truth</h3>
+                <p class="chart-desc">Rigorous validation against human-reviewed gold labels</p>
+              </div>
+              <span class="badge badge-emerald" id="evalReviewedCountBadge">0 Labels</span>
+            </div>
+
+            <div class="eval-stat-grid">
+              <div class="eval-stat-box">
+                <span class="eval-stat-label">Reviewed Samples</span>
+                <span class="eval-stat-number" id="evalLabelsTotal">0</span>
+              </div>
+              <div class="eval-stat-box">
+                <span class="eval-stat-label">Model Accuracy</span>
+                <span class="eval-stat-number" id="evalAccuracyScore">—</span>
+              </div>
+              <div class="eval-stat-box">
+                <span class="eval-stat-label">Macro F1 Score</span>
+                <span class="eval-stat-number" id="evalMacroF1Score">—</span>
+              </div>
+            </div>
+
+            <div class="eval-action-box">
+              <p class="eval-explainer">
+                Original intake tags are weak labels (agents rarely re-tag). Per assignment guidelines, real model accuracy is calculated only against verified review labels.
+              </p>
+              <button class="btn btn-secondary btn-block" id="generateReviewPackBtn">
+                Generate 220-Sample Review Pack (review_sample.csv)
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- PAGE 5: TICKET EXPLORER & CASE AUDIT (DATA TABLE & DRAWER)   -->
+      <!-- ============================================================ -->
+      <section id="tab-tickets" class="tab-pane" role="tabpanel">
+        
+        <div class="glass-card explorer-card">
+          <div class="explorer-topbar">
+            <div>
+              <h3>Support Ticket Explorer</h3>
+              <p class="chart-desc">Inspect conversation text, audit routing discrepancies, and inspect AI reasoning</p>
+            </div>
+
+            <div class="explorer-controls">
+              <div class="search-input-wrap">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="ticketSearchInput" placeholder="Search ticket ID, keywords, customer text..." class="input-text">
+              </div>
+
+              <select id="channelSelect" class="filter-select" aria-label="Filter by Channel">
+                <option value="">All Channels</option>
+                <option value="chat">Chat</option>
+                <option value="email">Email</option>
+                <option value="voice">Voice</option>
+                <option value="social">Social</option>
+              </select>
+
+              <select id="routingFilterSelect" class="filter-select" aria-label="Filter by Routing Match">
+                <option value="">All Tickets</option>
+                <option value="misrouted" selected>Misrouted Only (Assigned ≠ AI Owner)</option>
+                <option value="review">Needs Review Only</option>
+                <option value="classified">Classified Only</option>
+              </select>
+
+              <button id="applyTicketFiltersBtn" class="btn btn-secondary">Filter</button>
+            </div>
+          </div>
+
+          <!-- Table Container -->
+          <div class="table-container">
+            <table class="clean-table" id="ticketsMainTable">
+              <thead>
+                <tr>
+                  <th>Ticket ID</th>
+                  <th>Created (IST)</th>
+                  <th>Channel</th>
+                  <th>Intake Category ➔ AI Category</th>
+                  <th>Assigned Team ➔ AI Recommended</th>
+                  <th>Confidence</th>
+                  <th>Review Flag</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="ticketsTableBody">
+                <tr><td colspan="8" class="loading-cell">Loading ticket records...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Table Pagination Footer -->
+          <div class="table-pagination-footer">
+            <div id="ticketPaginationLabel" class="pagination-info">Showing 0 tickets</div>
+            <div class="pagination-buttons">
+              <button id="prevTicketsBtn" class="btn btn-secondary btn-sm" disabled>Previous</button>
+              <button id="nextTicketsBtn" class="btn btn-secondary btn-sm">Next</button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Side Drawer / Modal for Ticket Inspection -->
+    <div id="ticketDrawerBackdrop" class="drawer-backdrop hidden">
+      <aside class="drawer-panel" role="dialog" aria-labelledby="drawerTicketTitle">
+        <div class="drawer-header">
+          <div>
+            <div class="drawer-pretitle">Ticket Forensic Inspection</div>
+            <h3 id="drawerTicketTitle">TK-240179</h3>
+          </div>
+          <button id="closeDrawerBtn" class="btn-close" aria-label="Close details">&times;</button>
+        </div>
+
+        <div class="drawer-content">
+          <!-- Comparison Summary -->
+          <div class="drawer-card-grid">
+            <div class="drawer-stat-card">
+              <span class="drawer-card-title">Intake Information</span>
+              <div class="drawer-item"><span class="k">Intake Category:</span> <span class="v" id="drawerIntakeCat">—</span></div>
+              <div class="drawer-item"><span class="k">Initial Assigned:</span> <span class="v" id="drawerAssignedTeam">—</span></div>
+              <div class="drawer-item"><span class="k">Channel / Date:</span> <span class="v" id="drawerChannelDate">—</span></div>
+            </div>
+
+            <div class="drawer-stat-card highlight-drawer-card">
+              <span class="drawer-card-title">AI Classification & Policy Target</span>
+              <div class="drawer-item"><span class="k">AI Category:</span> <span class="v text-blue font-bold" id="drawerAiCat">—</span></div>
+              <div class="drawer-item"><span class="k">Recommended Team:</span> <span class="v text-emerald font-bold" id="drawerAiTeam">—</span></div>
+              <div class="drawer-item"><span class="k">Confidence:</span> <span class="v font-mono" id="drawerConfidence">—</span></div>
+            </div>
+          </div>
+
+          <!-- Customer Message -->
+          <div class="drawer-section">
+            <div class="drawer-section-title">Customer Opening Message / IVR Transcript</div>
+            <div class="message-quote customer-quote" id="drawerCustomerMessage">—</div>
+          </div>
+
+          <!-- Agent Closing Note -->
+          <div class="drawer-section">
+            <div class="drawer-section-title">Agent Closing Note</div>
+            <div class="message-quote agent-quote" id="drawerAgentNotes">—</div>
+          </div>
+
+          <!-- AI Explanation Rationale -->
+          <div class="drawer-section">
+            <div class="drawer-section-title">AI Classification Rationale</div>
+            <div class="ai-rationale-box" id="drawerRationale">—</div>
+          </div>
+
+          <!-- Quick Human Review Tool -->
+          <div class="drawer-section review-tool-box">
+            <div class="drawer-section-title">Submit Verified Gold Label</div>
+            <div class="review-inputs-row">
+              <select id="drawerGoldSelect" class="filter-select">
+                <option value="">Select Valid Category...</option>
+                <option value="Delivery & Shipping">Delivery & Shipping</option>
+                <option value="Returns & Refunds">Returns & Refunds</option>
+                <option value="Billing & Payments">Billing & Payments</option>
+                <option value="Audio Quality">Audio Quality</option>
+                <option value="Connectivity">Connectivity</option>
+                <option value="Charging & Battery">Charging & Battery</option>
+                <option value="Warranty & Repair">Warranty & Repair</option>
+                <option value="App & Firmware">App & Firmware</option>
+                <option value="Product Enquiry">Product Enquiry</option>
+                <option value="Account & Login">Account & Login</option>
+                <option value="Other">Other</option>
+              </select>
+              <input type="text" id="drawerReviewerNotes" placeholder="Reviewer notes (optional)" class="input-text">
+              <button id="saveDrawerReviewBtn" class="btn btn-primary btn-sm">Save</button>
+            </div>
+            <div id="drawerSaveSuccess" class="success-note hidden">✓ Review label saved to database!</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- App Footer -->
+    <footer class="app-footer">
+      <div class="footer-container">
+        <span>Vireo Audio Support Analytics Platform • Executive Staffing Evaluation</span>
+        <div class="footer-meta">
+          <span>Engine: <strong id="footerEngine">Groq</strong></span>
+          <span>Window: <strong>2025-01-01 to 2026-06-30</strong></span>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

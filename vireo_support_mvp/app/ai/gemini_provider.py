@@ -15,6 +15,6 @@ class GeminiAIProvider(AIProvider):
         response = self.client.models.generate_content(
             model=self.model,
             contents=[SYSTEM_PROMPT, user],
-            config={"response_mime_type": "application/json", "response_schema": structured_schema()["schema"], "temperature": 0},
+            config={"response_mime_type": "application/json", "response_schema": ClassificationResult, "temperature": 0},
         )
         return ClassificationResult.model_validate_json(response.text)

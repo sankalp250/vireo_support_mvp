@@ -1,12 +1,15 @@
 from datetime import datetime
 from time import perf_counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import logging
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 from app.ai.base import AIProvider
 from app.ai.prompts import PROMPT_VERSION
 from app.db.models import Ticket, Classification
 from app.services.ticket_logic import build_classification_text, recommended_team
+
+logger = logging.getLogger(__name__)
 
 
 def classify_one(ticket: Ticket, provider: AIProvider) -> Classification:
@@ -26,28 +29,46 @@ def classify_one(ticket: Ticket, provider: AIProvider) -> Classification:
         latency_ms=latency,
     )
 
-def classify_tickets(session: Session, provider: AIProvider, force: bool=False, limit: int|None=None, concurrency: int=8) -> tuple[int,int]:
-    stmt=select(Ticket).order_by(Ticket.created_at)
-    tickets=session.execute(stmt).scalars().all()
+def classify_tickets(session: Session, provider: AIProvider, force: bool=False, limit: int|None=None, concurrency: int=1) -> tuple[int,int]:
+    import time
+    # Prioritize tickets needing review or baseline classifications first
     if not force:
-        existing={x[0] for x in session.execute(select(Classification.ticket_id)).all()}
-        tickets=[t for t in tickets if t.ticket_id not in existing]
+        # Upgrade baseline/unreviewed tickets first
+        candidate_ids = [
+            r[0] for r in session.execute(
+                select(Classification.ticket_id)
+                .where(Classification.provider.in_(["baseline", "mock"]) | (Classification.needs_review == True))
+            ).all()
+        ]
+        if candidate_ids:
+            stmt = select(Ticket).where(Ticket.ticket_id.in_(candidate_ids)).order_by(Ticket.created_at)
+        else:
+            stmt = select(Ticket).order_by(Ticket.created_at)
+    else:
+        stmt = select(Ticket).order_by(Ticket.created_at)
+
+    tickets = session.execute(stmt).scalars().all()
     if limit:
-        tickets=tickets[:limit]
-    done=failed=0
-    with ThreadPoolExecutor(max_workers=concurrency) as pool:
-        futures={pool.submit(classify_one,t,provider):t for t in tickets}
-        for fut in as_completed(futures):
-            t=futures[fut]
-            try:
-                c=fut.result()
-                if force:
-                    session.execute(delete(Classification).where(Classification.ticket_id==t.ticket_id))
-                session.add(c)
-                done += 1
-            except Exception:
-                failed += 1
-            if (done + failed) % 25 == 0:
+        tickets = tickets[:limit]
+
+    done = failed = 0
+    # Sequential execution with rate-pacing to honor Groq / Gemini free tier limits
+    for idx, t in enumerate(tickets):
+        try:
+            c = classify_one(t, provider)
+            session.execute(delete(Classification).where(Classification.ticket_id == t.ticket_id))
+            session.add(c)
+            done += 1
+            if done % 10 == 0:
                 session.commit()
+            # Pacing delay between calls to stay below Groq's 30 RPM limit
+            time.sleep(1.8)
+        except Exception as exc:
+            failed += 1
+            logger.warning(f"Classification failed for {t.ticket_id}: {exc}")
+            # If rate limited, pause a little longer before next ticket
+            if "429" in str(exc):
+                time.sleep(3.0)
+
     session.commit()
     return done, failed

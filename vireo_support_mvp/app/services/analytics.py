@@ -25,7 +25,7 @@ def summary(session: Session) -> dict:
     }
 
 
-def monthly(session: Session, dimension: str) -> list[dict]:
+def monthly(session: Session, dimension: str, exclude_unclassified: bool = False) -> list[dict]:
     rows = session.execute(
         select(Ticket.created_at, Ticket.assigned_team, Ticket.channel, Ticket.ticket_id, Ticket.category.label("ticket_category"), Classification.category.label("ai_category"), Classification.recommended_team.label("ai_team"))
         .join(Classification, Classification.ticket_id == Ticket.ticket_id, isouter=True)
@@ -39,14 +39,20 @@ def monthly(session: Session, dimension: str) -> list[dict]:
         if dimension == "category":
             label=r.ticket_category or "Unclassified"
         elif dimension == "ai_category":
+            if exclude_unclassified and not r.ai_category:
+                continue
             label=r.ai_category or "Unclassified"
         elif dimension == "team":
             label=r.assigned_team or "Unknown"
         elif dimension == "recommended_team":
+            if exclude_unclassified and not r.ai_team:
+                continue
             label=r.ai_team or "Unclassified"
         else:
             raise ValueError("Unsupported dimension")
         records.append({"month": dt.strftime("%Y-%m"), "label": label})
+    if not records:
+        return []
     df=pd.DataFrame(records).groupby(["month","label"], as_index=False).size().rename(columns={"size":"count"})
     return df.to_dict(orient="records")
 
@@ -86,18 +92,48 @@ def sla_metrics(session: Session) -> dict:
 
 
 def evaluation(session: Session) -> dict:
-    rows=session.execute(select(ReviewLabel.gold_category, Classification.category).join(Classification, Classification.ticket_id==ReviewLabel.ticket_id)).all()
+    rows = session.execute(
+        select(ReviewLabel.gold_category, Classification.category)
+        .join(Classification, Classification.ticket_id == ReviewLabel.ticket_id)
+    ).all()
     if not rows:
-        return {"labels":0,"accuracy":None,"macro_f1":None}
-    from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
-    y_true=[r.gold_category for r in rows]
-    y_pred=[r.category for r in rows]
+        return {"labels": 0, "accuracy": None, "macro_f1": None}
+
+    y_true = [r[0] for r in rows]
+    y_pred = [r[1] for r in rows]
+    n = len(y_true)
+    if n == 0:
+        return {"labels": 0, "accuracy": None, "macro_f1": None}
+
+    # Pure Python accuracy
+    acc = sum(1 for yt, yp in zip(y_true, y_pred) if yt == yp) / n
+
+    # Macro F1 across all present categories
+    categories = sorted(set(y_true) | set(y_pred))
+    f1_scores = []
+    for c in categories:
+        tp = sum(1 for yt, yp in zip(y_true, y_pred) if yt == c and yp == c)
+        fp = sum(1 for yt, yp in zip(y_true, y_pred) if yt != c and yp == c)
+        fn = sum(1 for yt, yp in zip(y_true, y_pred) if yt == c and yp != c)
+        prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1 = (2 * prec * rec / (prec + rec)) if (prec + rec) > 0 else 0.0
+        f1_scores.append(f1)
+
+    macro_f1 = sum(f1_scores) / len(f1_scores) if f1_scores else 0.0
+
+    # Confusion matrix
+    conf_matrix = [
+        [sum(1 for yt, yp in zip(y_true, y_pred) if yt == c_true and yp == c_pred) for c_pred in categories]
+        for c_true in categories
+    ]
+
     return {
-        "labels": len(rows),
-        "accuracy": round(float(accuracy_score(y_true,y_pred)),4),
-        "macro_f1": round(float(f1_score(y_true,y_pred, average="macro", labels=sorted(set(y_true) | set(y_pred)), zero_division=0)),4),
-        "categories": sorted(set(y_true) | set(y_pred)),
-        "confusion_matrix": confusion_matrix(y_true,y_pred,labels=sorted(set(y_true) | set(y_pred))).tolist(),
+        "labels": n,
+        "accuracy": round(float(acc), 4),
+        "macro_f1": round(float(macro_f1), 4),
+        "categories": categories,
+        "confusion_matrix": conf_matrix,
     }
 
 
