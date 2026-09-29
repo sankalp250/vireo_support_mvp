@@ -1,0 +1,49 @@
+{
+  "source_rows": 11780,
+  "analysis_rows": 11641,
+  "excluded_rows": 139,
+  "profiles": [
+    {
+      "file": "tickets.csv",
+      "rows": 11780,
+      "columns": 21,
+      "memory_mb": 13.976,
+      "missing_cells": 34859,
+      "duplicate_rows": 0
+    },
+    {
+      "file": "agents.csv",
+      "rows": 44,
+      "columns": 8,
+      "memory_mb": 0.015,
+      "missing_cells": 44,
+      "duplicate_rows": 0
+    },
+    {
+      "file": "customers.csv",
+      "rows": 9500,
+      "columns": 6,
+      "memory_mb": 3.025,
+      "missing_cells": 0,
+      "duplicate_rows": 0
+    },
+    {
+      "file": "orders.csv",
+      "rows": 15000,
+      "columns": 8,
+      "memory_mb": 5.173,
+      "missing_cells": 0,
+      "duplicate_rows": 0
+    },
+    {
+      "file": "products.csv",
+      "rows": 14,
+      "columns": 7,
+      "memory_mb": 0.004,
+      "missing_cells": 0,
+      "duplicate_rows": 0
+    }
+  ],
+  "numpy_version": "2.3.5",
+  "pandas_version": "2.2.3"
+}
