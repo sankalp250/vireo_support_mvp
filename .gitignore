@@ -8,3 +8,4 @@ vireo.db
 *.log
 output/
 review_sample.csv
+vireo_support_mvp/
